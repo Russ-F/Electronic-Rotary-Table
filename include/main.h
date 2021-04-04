@@ -1,0 +1,12 @@
+void MoveStepper(void *parameter);
+void scanI2CDevices();
+void DrawMainMenu();
+void StepAngle();
+void Jog();
+int GetDivisions();
+void Divisions(int);
+int MainMenu();
+void IntroScreen();
+void RunContinuous();
+void Oscillate();
+void ParameterSetUp();
