@@ -12,7 +12,6 @@
 #define LARGE_ENCODER_ADDRESS 0x04 // I2C adddress
 
 #define BASE_FONT u8g2_font_logisoso16_tr //u8g2_font_9x15B_tf //u8g2_font_6x12_t_symbols
-#define SMALL_FONT u8g2_font_6x10_mr
 
 #define stepPinStepper 26
 #define dirPinStepper 27
@@ -22,6 +21,11 @@
 #define I2C_SDA 21
 #define I2C_SCL 22
 #define i2C_Freq 400000
+
+#define LeftMargin 04     //4 pixels from left hand side on display
+#define Line1 16        //Line start coordinated for 16pixel font
+#define Line2 38
+#define Line3 60
 
 // simple wrapper for determining the array elements count
 #define ArraySize(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -123,12 +127,14 @@ void setup()
   // Set up Stepper Motor Values
   Serial.println("**** Setting up Stepper ****");
   StartTime = micros();
-  stepper.setEnablePin(enablePinStepper); //Set Enable Pin: When high disables power to motor
-  stepper.enableOutputs();                //Turn on Step and Dir pins
-  stepper.setMinPulseWidth(20);           //Step min pulse width - 20uS (standard minimum for 6600 based microstepper drivers)
-  stepper.setMaxSpeed(10000);             //Set Maximum speed pulses\second
-  stepper.setAcceleration(50000);         //Set accelleration in pulses\second\second.
-  stepper.setCurrentPosition(0);          //Set current position to Absolute Position 0.
+  stepper.setEnablePin(enablePinStepper);      //Set Enable Pin
+  stepper.setPinsInverted(false, false, true); //(Direction, Step, Enable) i.e Invert Enable Pin
+  stepper.disableOutputs();                    //Disable outputs via En pin to reduce standby current
+  stepper.setMinPulseWidth(20);                //Step min pulse width - 20uS (standard minimum for 6600 based microstepper drivers)
+  stepper.setMaxSpeed(10000);                  //Set Maximum speed pulses\second
+  stepper.setAcceleration(50000);              //Set accelleration in pulses\second\second
+  stepper.setCurrentPosition(0);               //Set current position to Absolute Position 0
+
   Period = micros() - StartTime;
   Serial.printf(" *** Setting up Stepper COMPLETE **** > %d uS\n", Period);
 
@@ -223,21 +229,24 @@ void scanI2CDevices()
 
 void IntroScreen()
 { //Display about Info
+  char tmp[20];
   PanelDisplay.setFont(BASE_FONT);
   PanelDisplay.setFontMode(0);
   PanelDisplay.setDrawColor(1);
   PanelDisplay.clearBuffer();
-  PanelDisplay.drawStr(0, 30, "ERT Ver:1.0");
-  PanelDisplay.drawStr(0, 50, "R.Firth 2021");
+  PanelDisplay.drawStr(LeftMargin, Line1, "ERT Ver:1.0");
+  PanelDisplay.drawStr(LeftMargin, Line2, "R.Firth 2022");
+  sprintf(tmp, "Boot: %d", BootCount); //Display Step value
+  PanelDisplay.drawStr(LeftMargin, Line3, tmp);
   PanelDisplay.sendBuffer();
   delay(3000); //Wait 3 seconds
 }
 
 int MainMenu()
 {                             //Display main menu items and select an item.
-  const int NumMenuItems = 6; //Hol;ds number of menu items
+  const int NumMenuItems = 6; //Holds number of menu items
   int MenuSelection = 0;
-  const char *MenuText[NumMenuItems] = {"1.Jog", "2.Step Angle", "3.Divisions", "4.Run", "5.Oscillate", "9.Setup"};
+  const char *MenuText[NumMenuItems] = {"1:Jog", "2:Step Angle", "3:Divisions", "4:Run", "5:Oscillate", "9:Setup"};
   int v = 0;              //Holds rotary button value -1,0 or 1
   int encoderPos = 0;     //Current Cumulative rotary button count
   int lastEncoderPos = 0; //Previous Cumulative rotary button count
@@ -263,6 +272,8 @@ int MainMenu()
 
     v = PanelEncoder.getValue(); //Get Button step direction -1, 0 or 1
     encoderPos += v;             //Calculate cumulative position
+    if (encoderPos == -1)
+      encoderPos = NumMenuItems - 1;
 
     if (encoderPos != lastEncoderPos)
     {                                                 //Execute if rotary button changed
@@ -270,8 +281,8 @@ int MainMenu()
       MenuSelection = abs(encoderPos % NumMenuItems); //Calculate index postion from Cumulative button position
 
       PanelDisplay.clearBuffer();
-      PanelDisplay.drawStr(0, 20, "Main Menu");             //Display Main Menu
-      PanelDisplay.drawStr(0, 40, MenuText[MenuSelection]); //Display text indext by button index position
+      PanelDisplay.drawStr(LeftMargin, Line1, "Main Menu");             //Display Main Menu
+      PanelDisplay.drawStr(LeftMargin, Line2, MenuText[MenuSelection]); //Display text indext by button index position
       PanelDisplay.sendBuffer();
 
       Serial.printf("Menu Option Value inside menu change %d\n", MenuSelection);
@@ -321,6 +332,7 @@ void Jog()
   PanelEncoder.flushFifo();             //clear any queued events
   PanelEncoder.resetButton(MainButton); //reset main button state
 
+  stepper.enableOutputs();       //Enable Stepper Driver
   stepper.setCurrentPosition(0); //Set current motor position to Zero
 
   do
@@ -340,10 +352,10 @@ void Jog()
       LargeEncoder.writeStep((int32_t)StepValue);     //Write to large encoder value for it to handle increments
 
       PanelDisplay.clearBuffer();
-      sprintf(tmp, "Step: %.2f", AnglePerMenuOpt[OptValue]); //Display Step selected
-      PanelDisplay.drawStr(4, 30, tmp);
+      sprintf(tmp, "Step: %05.2f", AnglePerMenuOpt[OptValue]); //Display Step selected
+      PanelDisplay.drawStr(LeftMargin, Line1, tmp);
       sprintf(tmp, "Pos: %.2f", AbsoluteAngle); //Display Total angle
-      PanelDisplay.drawStr(4, 60, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line2, tmp);
       PanelDisplay.sendBuffer();
       Serial.printf("Menu Option Value inside menu change %d\n", OptValue);
       Serial.printf("Step inside {}: %f\n", AnglePerMenuOpt[OptValue]);
@@ -364,10 +376,10 @@ void Jog()
       Serial.printf("Step: %f\n", AnglePerMenuOpt[OptValue] * 100.0);
 
       PanelDisplay.clearBuffer();
-      sprintf(tmp, "Step: %.2f", AnglePerMenuOpt[OptValue]); //Display Step value
-      PanelDisplay.drawStr(4, 30, tmp);
+      sprintf(tmp, "Step: %05.2f", AnglePerMenuOpt[OptValue]); //Display Step value
+      PanelDisplay.drawStr(LeftMargin, Line1, tmp);
       sprintf(tmp, "Pos: %.2f", AbsoluteAngle); //Display absolute total angle
-      PanelDisplay.drawStr(4, 60, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line2, tmp);
       PanelDisplay.sendBuffer();
 
       AbsStepsPos = StepsPerDegree * EncoderAngle / 100; //Convert angle to steps {need to calculate from steps per angle)}
@@ -377,7 +389,8 @@ void Jog()
 
   PanelEncoder.setLED(LED_GREEN, true); //Set main button LED to Green
   PanelEncoder.setLED(LED_RED, false);
-  stepper.stop(); //Stop the motor
+  stepper.stop();           //Stop the motor
+  stepper.disableOutputs(); //Disables output from Stepper controller to save current\heating
 }
 
 void StepAngle()
@@ -413,6 +426,7 @@ void StepAngle()
   PanelEncoder.flushFifo();             //clear any queued events
   PanelEncoder.resetButton(MainButton); //reset main button state
 
+  stepper.enableOutputs();       //Enable Stepper Driver
   stepper.setCurrentPosition(0); //Set current motor position to Zero
 
   do
@@ -430,21 +444,21 @@ void StepAngle()
       switch (UnderscoreIndex)
       {
       case 0:
-        sprintf_P(uString, PSTR(" ^^^")); //Underline Units
-        MaxValue = 360;                   //Set max value of encoder to 360 degrees
-        MinValue = -360;                  //Set min value of encoder to -360 degrees
-        EditValue = UnitJogAngle;         //Edit Unit angle
-        EncStep = 1;                      //Set steps to 1
+        sprintf_P(uString, PSTR(" ___.")); //Underline Units
+        MaxValue = 360;                    //Set max value of encoder to 360 degrees
+        MinValue = -360;                   //Set min value of encoder to -360 degrees
+        EditValue = UnitJogAngle;          //Edit Unit angle
+        EncStep = 1;                       //Set steps to 1
         break;
       case 1:
-        sprintf_P(uString, PSTR("     ^^")); //Underline Tenths value
+        sprintf_P(uString, PSTR("    .__")); //Underline Tenths value
         MaxValue = 99;                       //Set MAx value to 99
         MinValue = 0;                        //Set Min value to 0
         EditValue = TenthsJogAngle;          //Edit Tenths Angle
         EncStep = 1;                         //Set steps to 1
         break;
       case 2:
-        sprintf_P(uString, PSTR("       ^^")); //Underline Thousandths value
+        sprintf_P(uString, PSTR("    .  __")); //Underline Thousandths value
         MaxValue = 99;                         //Set MAx to 99
         MinValue = 0;                          //Set Min to 0
         EditValue = ThouJogAngle;              //Edit Thousandths angle
@@ -456,11 +470,11 @@ void StepAngle()
       LargeEncoder.writeMin((int32_t)MinValue);      //Set Encoder Min Value
       LargeEncoder.writeStep((int32_t)EncStep);      //Set encoder step value
 
-      PanelDisplay.clearBuffer();                                            //Clear display buffer
-      sprintf(tmp, "%4d,%d%d°", UnitJogAngle, TenthsJogAngle, ThouJogAngle); //Convert numerics to string
-      PanelDisplay.drawStr(4, 40, tmp);                                      //Display Angle
-      PanelDisplay.drawStr(4, 65, uString);                                  //Display Underline Markers
-      PanelDisplay.sendBuffer();                                             //Display Buffer
+      PanelDisplay.clearBuffer();                                                  //Clear display buffer
+      sprintf(tmp, "%+04d,%02d%02d°", UnitJogAngle, TenthsJogAngle, ThouJogAngle); //Convert numerics to string
+      PanelDisplay.drawStr(LeftMargin, Line1, tmp);                                //Display Angle
+      PanelDisplay.drawStr(LeftMargin, 18, uString);                               //Display Underline Markers
+      PanelDisplay.sendBuffer();                                                   //Display Buffer
       Serial.printf("Menu Option Value inside menu change %d\n", UnderscoreIndex);
     } //End of Wheel change section
 
@@ -483,11 +497,11 @@ void StepAngle()
       }
       Serial.printf("Menu Option Value inside encoder change %d\n", UnderscoreIndex);
       StartTime = micros();
-      PanelDisplay.clearBuffer();                                                //Clear display buffer
-      sprintf(tmp, "%4d,%02d%02d°", UnitJogAngle, TenthsJogAngle, ThouJogAngle); //Convert numbers to string
-      PanelDisplay.drawStr(4, 40, tmp);                                          //Display Angle
-      PanelDisplay.drawStr(4, 65, uString);                                      //Display Underline
-      PanelDisplay.sendBuffer();                                                 //Display buffer
+      PanelDisplay.clearBuffer();                                                  //Clear display buffer
+      sprintf(tmp, "%+04d,%02d%02d°", UnitJogAngle, TenthsJogAngle, ThouJogAngle); //Convert numbers to string
+      PanelDisplay.drawStr(LeftMargin, Line1, tmp);                                //Display Angle
+      PanelDisplay.drawStr(LeftMargin, 18, uString);                               //Display Underline
+      PanelDisplay.sendBuffer();                                                   //Display buffer
       Period = micros() - StartTime;
       Serial.printf(" Elapsed time >%d uS\n", Period);
       StepAngle = UnitJogAngle + TenthsJogAngle / 100.0 + ThouJogAngle / 10000.0; //Calculate StepAngle from units, tenths and thousandths
@@ -500,11 +514,11 @@ void StepAngle()
 
   PanelDisplay.clearBuffer(); //Display Angle step, count
   sprintf(tmp, "Step:%3.4f", StepAngle);
-  PanelDisplay.drawStr(4, 16, tmp);
+  PanelDisplay.drawStr(LeftMargin, Line1, tmp);
   sprintf(tmp, "Rev:%2d Step#:%2d", Revolutions, StepCount);
-  PanelDisplay.drawStr(4, 34, tmp);
+  PanelDisplay.drawStr(LeftMargin, Line2, tmp);
   sprintf(tmp, "Angle:%3.3f", CumulativeAngle);
-  PanelDisplay.drawStr(4, 52, tmp);
+  PanelDisplay.drawStr(LeftMargin, Line3, tmp);
   PanelDisplay.sendBuffer();
 
   LargeEncoder.writeCounter((int32_t)0); // Reset the encoder value
@@ -529,11 +543,11 @@ void StepAngle()
 
       PanelDisplay.clearBuffer(); //Update Display
       sprintf(tmp, "Step:%3.4f", StepAngle);
-      PanelDisplay.drawStr(4, 16, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line1, tmp);
       sprintf(tmp, "R:%2d S#:%2d", Revolutions, StepCount);
-      PanelDisplay.drawStr(4, 34, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line2, tmp);
       sprintf(tmp, "Ang:%3.3f", CumulativeAngle);
-      PanelDisplay.drawStr(4, 52, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line3, tmp);
       PanelDisplay.sendBuffer();
 
       AbsStepperPosition = StepsPerDegree * CumulativeAngle; //Calculate Absolute Stepper position using hardware parameters (steps per degree
@@ -541,6 +555,7 @@ void StepAngle()
     }
   } while (mainBtn != Clicked); //repeat until main butten pressed to return to main menu
   stepper.stop();
+  stepper.disableOutputs();             //Disables output from Stepper controller to save current\heating
   PanelEncoder.setLED(LED_GREEN, true); //Main button to Green
   PanelEncoder.setLED(LED_RED, false);
 }
@@ -556,9 +571,9 @@ int GetDivisions()
   PanelDisplay.setDrawColor(1);
 
   PanelDisplay.clearBuffer();
-  PanelDisplay.drawStr(4, 16, "Enter divisions");
+  PanelDisplay.drawStr(LeftMargin, Line1, "Enter divisions");
   sprintf(tmp, "Div: %2d", Divisions);
-  PanelDisplay.drawStr(4, 34, tmp);
+  PanelDisplay.drawStr(LeftMargin, Line2, tmp);
   PanelDisplay.sendBuffer();
 
   LargeEncoder.reset();
@@ -595,9 +610,9 @@ int GetDivisions()
       Serial.printf("Wheel but: %d\n", wheelBtn);
 
       PanelDisplay.clearBuffer();
-      PanelDisplay.drawStr(4, 16, "Enter divisions"); //Display Enter Divisions
-      sprintf(tmp, "Div: %2d", Divisions);            //Display Divisions
-      PanelDisplay.drawStr(4, 34, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line1, "Enter divisions"); //Display Enter Divisions
+      sprintf(tmp, "Div: %2d", Divisions);                        //Display Divisions
+      PanelDisplay.drawStr(LeftMargin, Line2, tmp);
       PanelDisplay.sendBuffer();
     }
   } while (mainBtn != Clicked); //Exit on main button press
@@ -620,11 +635,11 @@ void Divisions(int Divisions)
 
   PanelDisplay.clearBuffer();
   sprintf(tmp, "Divs: %2d", Divisions);
-  PanelDisplay.drawStr(4, 16, tmp);
+  PanelDisplay.drawStr(LeftMargin, Line1, tmp);
   sprintf(tmp, "Div: %2d", Division);
-  PanelDisplay.drawStr(4, 34, tmp);
+  PanelDisplay.drawStr(LeftMargin, Line2, tmp);
   sprintf(tmp, "Angle: %3.3f", Angle);
-  PanelDisplay.drawStr(4, 52, tmp);
+  PanelDisplay.drawStr(LeftMargin, Line3, tmp);
   PanelDisplay.sendBuffer();
 
   LargeEncoder.reset(); //reset large encoder
@@ -644,6 +659,7 @@ void Divisions(int Divisions)
   PanelEncoder.flushFifo();             //clear any queued events
   PanelEncoder.resetButton(MainButton); //reset main button state
 
+  stepper.enableOutputs();       //Enable Stepper Driver
   stepper.setCurrentPosition(0); //Set current motor position to 0 (Home)
 
   do
@@ -667,11 +683,11 @@ void Divisions(int Divisions)
 
       PanelDisplay.clearBuffer();
       sprintf(tmp, "Divs:%2d", Divisions);
-      PanelDisplay.drawStr(4, 16, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line1, tmp);
       sprintf(tmp, "Div:%2d", Division);
-      PanelDisplay.drawStr(4, 34, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line2, tmp);
       sprintf(tmp, "Angle:%3.3f", Angle);
-      PanelDisplay.drawStr(4, 52, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line3, tmp);
       PanelDisplay.sendBuffer();
 
       stepper.moveTo(AngleInSteps); //Move motor to absolute Angle in Steps from Home
@@ -680,7 +696,8 @@ void Divisions(int Divisions)
 
   PanelEncoder.setLED(LED_GREEN, true); //Turn main button Green
   PanelEncoder.setLED(LED_RED, false);
-  stepper.stop(); //Stop Motor
+  stepper.stop();           //Stop Motor
+  stepper.disableOutputs(); //Disables output from Stepper controller to save current\heating
 }
 
 void RunContinuous()
@@ -695,7 +712,7 @@ void RunContinuous()
 
   PanelDisplay.clearBuffer();
   sprintf(tmp, "Speed: %d", Speed); //Display Speed
-  PanelDisplay.drawStr(4, 30, tmp);
+  PanelDisplay.drawStr(LeftMargin, Line1, tmp);
   PanelDisplay.sendBuffer();
 
   LargeEncoder.reset();
@@ -713,6 +730,7 @@ void RunContinuous()
   PanelEncoder.flushFifo();             //clear any queued events
   PanelEncoder.resetButton(MainButton); //reset main button state
 
+  stepper.enableOutputs();       //Enable Stepper Driver
   stepper.setCurrentPosition(0); //Reset motor to 0 (Home)
 
   PanelEncoder.setLED(LED_GREEN, false);
@@ -733,8 +751,8 @@ void RunContinuous()
       Serial.printf("Encoder Speed: %d\n", Speed);
 
       PanelDisplay.clearBuffer();
-      sprintf(tmp, "Speed: %d", Speed); //Update display with Speed
-      PanelDisplay.drawStr(4, 30, tmp);
+      sprintf(tmp, "Speed: %+d", Speed); //Update display with Speed
+      PanelDisplay.drawStr(LeftMargin, Line1, tmp);
       PanelDisplay.sendBuffer();
       stepper.setMaxSpeed(Speed); //Set maz speed of Motor to new Speed
       if (Speed > 0)
@@ -745,6 +763,7 @@ void RunContinuous()
   } while (mainBtn != Clicked); //Exit of main button pressed
 
   stepper.stop();                       //Stop Motor
+  stepper.disableOutputs();             //Disables output from Stepper controller to save current\heating
   PanelEncoder.setLED(LED_GREEN, true); //Turn main button Green
   PanelEncoder.setLED(LED_RED, false);
 }
@@ -773,8 +792,8 @@ void Oscillate()
   LargeEncoder.begin(i2cEncoderLibV2::INT_DATA | i2cEncoderLibV2::WRAP_DISABLE |
                      i2cEncoderLibV2::DIRE_LEFT | i2cEncoderLibV2::IPUP_ENABLE |
                      i2cEncoderLibV2::RMOD_X1 | i2cEncoderLibV2::STD_ENCODER);
-  LargeEncoder.writeMax((int32_t)100000);           //Set max dial value to an arbitrary 100000
-  LargeEncoder.writeMin((int32_t)-100000);          //Set min dial value to an arbitrary -10000
+  LargeEncoder.writeMax((int32_t)99999);            //Set max dial value to an arbitrary 100000
+  LargeEncoder.writeMin((int32_t)-99999);           //Set min dial value to an arbitrary -10000
   LargeEncoder.writeCounter((int32_t)EncoderAngle); //Set cencoder value to Angle
   LargeEncoder.writeStep((int32_t)100);             //Set Steps to 100
   LargeEncoder.writeInterruptConfig(0x18);          //Limit events to encoder turning
@@ -805,10 +824,10 @@ void Oscillate()
       LargeEncoder.writeStep((int32_t)StepValue);     //Write to large encoder value for it to handle increments
 
       PanelDisplay.clearBuffer();
-      sprintf(tmp, "Step: %.2f", AnglePerMenuOpt[OptValue]); //Display Step selected
-      PanelDisplay.drawStr(4, 30, tmp);
-      sprintf(tmp, "Pos: %.2f", AbsoluteAngle); //Display Total angle
-      PanelDisplay.drawStr(4, 60, tmp);
+      sprintf(tmp, "Step: %05.2f", AnglePerMenuOpt[OptValue]); //Display Step selected
+      PanelDisplay.drawStr(LeftMargin, Line1, tmp);
+      sprintf(tmp, "Angle:%+07.2f", AbsoluteAngle); //Display Total angle
+      PanelDisplay.drawStr(LeftMargin, Line2, tmp);
       PanelDisplay.sendBuffer();
       Serial.printf("Menu Option Value inside menu change %d\n", OptValue);
       Serial.printf("Step inside {}: %f\n", AnglePerMenuOpt[OptValue]);
@@ -829,10 +848,10 @@ void Oscillate()
       Serial.printf("Step: %f\n", AnglePerMenuOpt[OptValue] * 100.0);
 
       PanelDisplay.clearBuffer();
-      sprintf(tmp, "Step: %.2f", AnglePerMenuOpt[OptValue]); //Display Step value
-      PanelDisplay.drawStr(4, 30, tmp);
-      sprintf(tmp, "Pos: %.2f", AbsoluteAngle); //Display absolute total angle
-      PanelDisplay.drawStr(4, 60, tmp);
+      sprintf(tmp, "Step: %05.2f", AnglePerMenuOpt[OptValue]); //Display Step value
+      PanelDisplay.drawStr(LeftMargin, Line1, tmp);
+      sprintf(tmp, "Angle:%+07.2f", AbsoluteAngle); //Display absolute total angle
+      PanelDisplay.drawStr(LeftMargin, Line2, tmp);
       PanelDisplay.sendBuffer();
     }
   } while (mainBtn != Clicked); //repeat until main button is pressed
@@ -845,7 +864,7 @@ void Oscillate()
 
   PanelDisplay.clearBuffer();
   sprintf(tmp, "Speed: %d", Speed); //Display Speed
-  PanelDisplay.drawStr(4, 30, tmp);
+  PanelDisplay.drawStr(LeftMargin, Line1, tmp);
   PanelDisplay.sendBuffer();
 
   LargeEncoder.reset();
@@ -862,6 +881,7 @@ void Oscillate()
   PanelEncoder.begin();                 //reset Panel encoder
   PanelEncoder.resetButton(MainButton); //Reset main button
 
+  stepper.enableOutputs();
   stepper.setCurrentPosition(0); //Reset motor to 0 (Home)
   stepper.setMaxSpeed(Speed);    //Set maz speed of Motor to new Speed
   MoveSteps = StepsPerDegree * EncoderAngle / 100;
@@ -885,7 +905,7 @@ void Oscillate()
 
       PanelDisplay.clearBuffer();
       sprintf(tmp, "Speed: %d", Speed); //Update display with Speed
-      PanelDisplay.drawStr(4, 30, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line1, tmp);
       PanelDisplay.sendBuffer();
       stepper.setMaxSpeed(Speed); //Set maz speed of Motor to new Speed
     }
@@ -895,27 +915,27 @@ void Oscillate()
       stepper.moveTo(0); //Move motor back to zero
     PanelDisplay.clearBuffer();
     sprintf(tmp, "Speed: %d", Speed); //Update display with Speed
-    PanelDisplay.drawStr(4, 30, tmp);
-    sprintf(tmp, "Angle: %ld", stepper.currentPosition()); //Update display with Speed
-    PanelDisplay.drawStr(4, 50, tmp);
+    PanelDisplay.drawStr(LeftMargin, Line1, tmp);
+    sprintf(tmp, "Angle:%+07.2f", float(stepper.currentPosition() / (StepsPerDegree * 1.0))); //Update display with Speed
+    PanelDisplay.drawStr(LeftMargin, Line2, tmp);
     PanelDisplay.sendBuffer();
 
   } while (mainBtn != Clicked); //Exit if main button pressed
 
-  stepper.stop(); //Stop Motor
-
+  stepper.stop();                       //Stop Motor
+  stepper.disableOutputs();             //Disables output from Stepper controller to save current\heating
   PanelEncoder.setLED(LED_GREEN, true); //Turn main button Green
   PanelEncoder.setLED(LED_RED, false);
 }
 void ParameterSetUp()
-{                                                                                                            //Edit and store hardware parameters (EEPROM limit 200,000 R|W)
-  char tmp[20];                                                                                              //Temp string t hold char version of formatted numbers
-  const int NumMenuItems = 5;                                                                                //Number of menu items
-  int MenuSelection = 0;                                                                                     //Current menu item selected
-  const char *MenuText[NumMenuItems] = {"Motor Steps", "Ctrl Steps", "Ratio:", "Jog Speed", "Acceleration"}; //Array of parameters
-  int v = 0;                                                                                                 //Holds rotary button value -1, 0 or 1
-  int encoderPos = 0;                                                                                        //Holds current cumulative position of rotary button
-  int lastEncoderPos = 0;                                                                                    //Holds last rotary button position to detect change
+{                                                                                                                       //Edit and store hardware parameters (EEPROM limit 200,000 R|W)
+  char tmp[20];                                                                                                         //Temp string t hold char version of formatted numbers
+  const int NumMenuItems = 5;                                                                                           //Number of menu items
+  int MenuSelection = 0;                                                                                                //Current menu item selected
+  const char *MenuText[NumMenuItems] = {"Motor Steps:", "Micro Steps:", "Table Ratio:", "Jog Speed:", "Acceleration:"}; //Array of parameters
+  int v = 0;                                                                                                            //Holds rotary button value -1, 0 or 1
+  int encoderPos = 0;                                                                                                   //Holds current cumulative position of rotary button
+  int lastEncoderPos = 0;                                                                                               //Holds last rotary button position to detect change
 
   int CurMotorStepsPerRev = MotorStepsPerRev; //Make copy of current parameters so that only changes need to be saved
   int CurControllerMicroSteps = ControllerMicroSteps;
@@ -960,39 +980,39 @@ void ParameterSetUp()
       MenuSelection = abs(encoderPos % NumMenuItems); //Create menu index number from cumulative position
 
       PanelDisplay.clearBuffer();
-      PanelDisplay.drawStr(0, 15, "Setup Menu");            //Display Menu
-      PanelDisplay.drawStr(0, 30, MenuText[MenuSelection]); //Display Menu item
+      PanelDisplay.drawStr(LeftMargin, Line1, "Setup Menu");            //Display Menu
+      PanelDisplay.drawStr(LeftMargin, Line2, MenuText[MenuSelection]); //Display Menu item
       switch (MenuSelection)
       { //Display menu item and value depending on index value
       case 0:
         LargeEncoder.writeCounter((int32_t)CurMotorStepsPerRev);
         LargeEncoder.writeStep((int32_t)100); //set steps to 100
         sprintf(tmp, "%d", CurMotorStepsPerRev);
-        PanelDisplay.drawStr(0, 45, tmp);
+        PanelDisplay.drawStr(LeftMargin, Line3, tmp);
         break;
       case 1:
         LargeEncoder.writeCounter((int32_t)CurControllerMicroSteps);
         LargeEncoder.writeStep((int32_t)1); //set Steps to 1
         sprintf(tmp, "%d", CurControllerMicroSteps);
-        PanelDisplay.drawStr(0, 45, tmp);
+        PanelDisplay.drawStr(LeftMargin, Line3, tmp);
         break;
       case 2:
         LargeEncoder.writeCounter((int32_t)CurTableRatio);
         LargeEncoder.writeStep((int32_t)1); //set steps to 1
         sprintf(tmp, "%d", CurTableRatio);
-        PanelDisplay.drawStr(0, 45, tmp);
+        PanelDisplay.drawStr(LeftMargin, Line3, tmp);
         break;
       case 3:
         LargeEncoder.writeCounter((int32_t)CurJogSpeed);
         LargeEncoder.writeStep((int32_t)100); //Set steps to 100
         sprintf(tmp, "%d", CurJogSpeed);
-        PanelDisplay.drawStr(0, 45, tmp);
+        PanelDisplay.drawStr(LeftMargin, Line3, tmp);
         break;
       case 4:
         LargeEncoder.writeCounter((int32_t)CurAccelleration);
         LargeEncoder.writeStep((int32_t)100); //Set steps to 100
         sprintf(tmp, "%d", CurAccelleration);
-        PanelDisplay.drawStr(0, 45, tmp);
+        PanelDisplay.drawStr(LeftMargin, Line3, tmp);
         break;
       }
       PanelDisplay.sendBuffer(); //Display buffer
@@ -1006,8 +1026,8 @@ void ParameterSetUp()
       LargeEncoder.readStatus();                     //Clear change event
 
       PanelDisplay.clearBuffer();
-      PanelDisplay.drawStr(0, 15, "Setup Menu");            //Display menu
-      PanelDisplay.drawStr(0, 30, MenuText[MenuSelection]); //Display parameter from index
+      PanelDisplay.drawStr(LeftMargin, Line1, "Setup Menu");            //Display menu
+      PanelDisplay.drawStr(LeftMargin, Line2, MenuText[MenuSelection]); //Display parameter from index
 
       switch (MenuSelection)
       { //Set parameter from menu index position
@@ -1028,7 +1048,7 @@ void ParameterSetUp()
         break;
       }
       sprintf(tmp, "%d", DialValue); //display value being edited
-      PanelDisplay.drawStr(0, 45, tmp);
+      PanelDisplay.drawStr(LeftMargin, Line3, tmp);
       PanelDisplay.sendBuffer();
     }
 
