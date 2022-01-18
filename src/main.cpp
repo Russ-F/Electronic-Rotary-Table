@@ -72,10 +72,10 @@ void setup()
 
   Wire.begin(I2C_SDA, I2C_SCL, i2C_Freq); //Configure I2C bus with pins 22(SDA), 21(SCL) and frequesncy of 400KHz
 
-  Serial.println("**** Setup Started****");
+  //Serial.println("**** Setup Started****");
 
   //Read paramters from NVRAM\FLASH RAM
-  Serial.println("**** Setting up Preferences ****");
+  //Serial.println("**** Setting up Preferences ****");
   StartTime = micros();
   preferences.begin("RotaryTable", false);         //Start NameSpace with read\write access
   BootCount = preferences.getUInt("BootCount", 0); //read Boot Count
@@ -95,37 +95,37 @@ void setup()
   preferences.putUInt("BootCount", BootCount); //store value in Non Volatile Memory (NVM)
   preferences.end();
   Period = micros() - StartTime;
-  Serial.printf(" *** Setting up Preferences Complete **** > %d uS\n", Period);
-  Serial.printf(" Boot Count > %d \n", BootCount);
+  //Serial.printf(" *** Setting up Preferences Complete **** > %d uS\n", Period);
+  //Serial.printf(" Boot Count > %d \n", BootCount);
 
   scanI2CDevices(); //scan and print to debug window devices found on I2C bus
 
   // initialize the Panel display
-  Serial.println("**** Setting up Panel Display ****");
+  //Serial.println("**** Setting up Panel Display ****");
   StartTime = micros();
   PanelDisplay.setI2CAddress(PANEL_DISPLAY_ADDRESS << 1); // Set I2C address of Panel Display
   PanelDisplay.begin();
   PanelDisplay.enableUTF8Print(); //enable UTF8 support for the print() statement
   PanelDisplay.clearDisplay();    //clear Display
   Period = micros() - StartTime;
-  Serial.printf(" *** Setting up Panel Display COMPLETE **** > %d uS\n", Period);
+  //Serial.printf(" *** Setting up Panel Display COMPLETE **** > %d uS\n", Period);
 
   // initialize the Panel encoder
-  Serial.println("**** Setting up Panel Encoder ****");
+  //Serial.println("**** Setting up Panel Encoder ****");
   StartTime = micros();
   PanelEncoder.begin();
-  uint8_t ver = PanelEncoder.queryVersion(); // Please notice: This library needs at least version 2!
-  Serial.printf("Encoder version is: %d", ver);
-  uint8_t opt = PanelEncoder.queryOptions(); // check the options
-  Serial.printf("Options set: 0x%02X\n", opt);
+  //uint8_t ver = PanelEncoder.queryVersion(); // Please notice: This library needs at least version 2!
+  //Serial.printf("Encoder version is: %d", ver);
+  //uint8_t opt = PanelEncoder.queryOptions(); // check the options
+  //Serial.printf("Options set: 0x%02X\n", opt);
   // enable encoder wheel to beep on rotation only
   PanelEncoder.setKeyBeep(1400, 10);
   PanelEncoder.setKeyBeepMask(BEEP_WHEEL_ROTATION);
   Period = micros() - StartTime;
-  Serial.printf(" *** etting up Panel Encoder COMPLETE **** > %d uS\n", Period);
+  //Serial.printf(" *** etting up Panel Encoder COMPLETE **** > %d uS\n", Period);
 
   // Set up Stepper Motor Values
-  Serial.println("**** Setting up Stepper ****");
+  //Serial.println("**** Setting up Stepper ****");
   StartTime = micros();
   stepper.setEnablePin(enablePinStepper);      //Set Enable Pin
   stepper.setPinsInverted(false, false, true); //(Direction, Step, Enable) i.e Invert Enable Pin
@@ -136,10 +136,10 @@ void setup()
   stepper.setCurrentPosition(0);               //Set current position to Absolute Position 0
 
   Period = micros() - StartTime;
-  Serial.printf(" *** Setting up Stepper COMPLETE **** > %d uS\n", Period);
+  //Serial.printf(" *** Setting up Stepper COMPLETE **** > %d uS\n", Period);
 
   //Setup large encoder
-  Serial.println("**** Setting up Large Encoder ****");
+  //Serial.println("**** Setting up Large Encoder ****");
   pinMode(EncChangePin, INPUT); // define pin that signals changes to large encoder dial low=change
   StartTime = micros();
   LargeEncoder.reset();
@@ -151,7 +151,7 @@ void setup()
   LargeEncoder.writeInterruptConfig(0x18);  //Enable just rotation interrupts */
   LargeEncoder.writeAntibouncingPeriod(20); //Set an anti-bouncing of 200ms */
   Period = micros() - StartTime;
-  Serial.printf(" *** Setting up Large Encoder COMPLETE **** > %d uS\n", Period);
+  //Serial.printf(" *** Setting up Large Encoder COMPLETE **** > %d uS\n", Period);
 
   IntroScreen(); //Display SW Version Info
 
@@ -165,7 +165,7 @@ void loop()
   for (;;)
   {                              //Continuous Loop
     int MenuChoice = MainMenu(); //Display main menu and return selected choice]
-    Serial.printf(" Menu Choice  >%d\n", MenuChoice);
+    //Serial.printf(" Menu Choice  >%d\n", MenuChoice);
     switch (MenuChoice)
     {
     case 0:
@@ -179,7 +179,7 @@ void loop()
     case 2:
     {
       int NumDivisions = GetDivisions(); // Obtain number of divisions of 360 degrees
-      Serial.printf(" Menu  >%d\n", NumDivisions);
+      //Serial.printf(" Menu  >%d\n", NumDivisions);
       Divisions(NumDivisions); //Jog repeatedly through number of divisions (bolt holes\gear teeth etc)
     }
     break;
@@ -221,8 +221,8 @@ void scanI2CDevices()
     // if something answered, the device is basically available
     if (Wire.endTransmission() == 0)
     {
-      Serial.printf("I2C device found at address 0x%2x\n", i2cAdr);
-      Serial.printf("Frequency %d\n", Wire.getClock()); //display clock frequency of I2C bus.
+      //Serial.printf("I2C device found at address 0x%2x\n", i2cAdr);
+      //Serial.printf("Frequency %d\n", Wire.getClock()); //display clock frequency of I2C bus.
     }
   }
 }
@@ -285,8 +285,8 @@ int MainMenu()
       PanelDisplay.drawStr(LeftMargin, Line2, MenuText[MenuSelection]); //Display text indext by button index position
       PanelDisplay.sendBuffer();
 
-      Serial.printf("Menu Option Value inside menu change %d\n", MenuSelection);
-      Serial.printf("Dial Counter value %d\n", v);
+      //Serial.printf("Menu Option Value inside menu change %d\n", MenuSelection);
+      //Serial.printf("Dial Counter value %d\n", v);
     }
 
   } while (mainBtn != Clicked); //Exit if main button pressed.
@@ -357,9 +357,9 @@ void Jog()
       sprintf(tmp, "Pos: %.2f", AbsoluteAngle); //Display Total angle
       PanelDisplay.drawStr(LeftMargin, Line2, tmp);
       PanelDisplay.sendBuffer();
-      Serial.printf("Menu Option Value inside menu change %d\n", OptValue);
-      Serial.printf("Step inside {}: %f\n", AnglePerMenuOpt[OptValue]);
-      Serial.printf("Step inside {} *100: %f\n", AnglePerMenuOpt[OptValue] * 100.0);
+      //Serial.printf("Menu Option Value inside menu change %d\n", OptValue);
+      //Serial.printf("Step inside {}: %f\n", AnglePerMenuOpt[OptValue]);
+      //Serial.printf("Step inside {} *100: %f\n", AnglePerMenuOpt[OptValue] * 100.0);
     }
 
     if (digitalRead(EncChangePin) == LOW)
@@ -370,10 +370,10 @@ void Jog()
 
       AbsoluteAngle = EncoderAngle / 100.0; //Convert integer angle to real by div 100
 
-      Serial.printf("Menu Option Value inside encoder change %d\n", OptValue);
-      Serial.printf("EncoderAngle: %d\n", EncoderAngle);
-      Serial.printf("AboluteAngle: %f\n", AbsoluteAngle);
-      Serial.printf("Step: %f\n", AnglePerMenuOpt[OptValue] * 100.0);
+      //Serial.printf("Menu Option Value inside encoder change %d\n", OptValue);
+      //Serial.printf("EncoderAngle: %d\n", EncoderAngle);
+      //Serial.printf("AboluteAngle: %f\n", AbsoluteAngle);
+      //Serial.printf("Step: %f\n", AnglePerMenuOpt[OptValue] * 100.0);
 
       PanelDisplay.clearBuffer();
       sprintf(tmp, "Step: %05.2f", AnglePerMenuOpt[OptValue]); //Display Step value
@@ -475,7 +475,7 @@ void StepAngle()
       PanelDisplay.drawStr(LeftMargin, Line1, tmp);                                //Display Angle
       PanelDisplay.drawStr(LeftMargin, 18, uString);                               //Display Underline Markers
       PanelDisplay.sendBuffer();                                                   //Display Buffer
-      Serial.printf("Menu Option Value inside menu change %d\n", UnderscoreIndex);
+      //Serial.printf("Menu Option Value inside menu change %d\n", UnderscoreIndex);
     } //End of Wheel change section
 
     if (digitalRead(EncChangePin) == LOW)
@@ -495,7 +495,7 @@ void StepAngle()
         ThouJogAngle = EditValue; //Set Thousandths angle from dial position
         break;
       }
-      Serial.printf("Menu Option Value inside encoder change %d\n", UnderscoreIndex);
+      //Serial.printf("Menu Option Value inside encoder change %d\n", UnderscoreIndex);
       StartTime = micros();
       PanelDisplay.clearBuffer();                                                  //Clear display buffer
       sprintf(tmp, "%+04d,%02d%02d°", UnitJogAngle, TenthsJogAngle, ThouJogAngle); //Convert numbers to string
@@ -503,7 +503,7 @@ void StepAngle()
       PanelDisplay.drawStr(LeftMargin, 18, uString);                               //Display Underline
       PanelDisplay.sendBuffer();                                                   //Display buffer
       Period = micros() - StartTime;
-      Serial.printf(" Elapsed time >%d uS\n", Period);
+      //Serial.printf(" Elapsed time >%d uS\n", Period);
       StepAngle = UnitJogAngle + TenthsJogAngle / 100.0 + ThouJogAngle / 10000.0; //Calculate StepAngle from units, tenths and thousandths
     }
 
@@ -605,9 +605,9 @@ int GetDivisions()
       LargeEncoder.updateStatus();                //Clear change event
       LargeEncoder.readStatus();                  //Clear status
 
-      Serial.printf("Divisions %d\n", Divisions);
-      Serial.printf("Main but: %d\n", mainBtn);
-      Serial.printf("Wheel but: %d\n", wheelBtn);
+      //Serial.printf("Divisions %d\n", Divisions);
+      //Serial.printf("Main but: %d\n", mainBtn);
+      //Serial.printf("Wheel but: %d\n", wheelBtn);
 
       PanelDisplay.clearBuffer();
       PanelDisplay.drawStr(LeftMargin, Line1, "Enter divisions"); //Display Enter Divisions
@@ -677,9 +677,9 @@ void Divisions(int Divisions)
       LargeEncoder.updateStatus(); //CLear Events
       LargeEncoder.readStatus();   //Clear Events
 
-      Serial.printf("Division: %d\n", Division);
-      Serial.printf("Angle: %.2f\n", Angle);
-      Serial.printf("Angle in Steps: %d\n", AngleInSteps);
+      //Serial.printf("Division: %d\n", Division);
+      //Serial.printf("Angle: %.2f\n", Angle);
+      //Serial.printf("Angle in Steps: %d\n", AngleInSteps);
 
       PanelDisplay.clearBuffer();
       sprintf(tmp, "Divs:%2d", Divisions);
@@ -748,7 +748,7 @@ void RunContinuous()
       LargeEncoder.updateStatus();            //Clear Encoder Status
       LargeEncoder.readStatus();              //Clear Encoder Status
 
-      Serial.printf("Encoder Speed: %d\n", Speed);
+      //Serial.printf("Encoder Speed: %d\n", Speed);
 
       PanelDisplay.clearBuffer();
       sprintf(tmp, "Speed: %+d", Speed); //Update display with Speed
@@ -829,9 +829,9 @@ void Oscillate()
       sprintf(tmp, "Angle:%+07.2f", AbsoluteAngle); //Display Total angle
       PanelDisplay.drawStr(LeftMargin, Line2, tmp);
       PanelDisplay.sendBuffer();
-      Serial.printf("Menu Option Value inside menu change %d\n", OptValue);
-      Serial.printf("Step inside {}: %f\n", AnglePerMenuOpt[OptValue]);
-      Serial.printf("Step inside {} *100: %f\n", AnglePerMenuOpt[OptValue] * 100.0);
+      //Serial.printf("Menu Option Value inside menu change %d\n", OptValue);
+      //Serial.printf("Step inside {}: %f\n", AnglePerMenuOpt[OptValue]);
+      //Serial.printf("Step inside {} *100: %f\n", AnglePerMenuOpt[OptValue] * 100.0);
     }
 
     if (digitalRead(EncChangePin) == LOW)
@@ -842,10 +842,10 @@ void Oscillate()
 
       AbsoluteAngle = EncoderAngle / 100.0; //Convert integer angle to real by div 100
 
-      Serial.printf("Menu Option Value inside encoder change %d\n", OptValue);
-      Serial.printf("EncoderAngle: %d\n", EncoderAngle);
-      Serial.printf("AboluteAngle: %f\n", AbsoluteAngle);
-      Serial.printf("Step: %f\n", AnglePerMenuOpt[OptValue] * 100.0);
+      //Serial.printf("Menu Option Value inside encoder change %d\n", OptValue);
+      //Serial.printf("EncoderAngle: %d\n", EncoderAngle);
+      //Serial.printf("AboluteAngle: %f\n", AbsoluteAngle);
+      //Serial.printf("Step: %f\n", AnglePerMenuOpt[OptValue] * 100.0);
 
       PanelDisplay.clearBuffer();
       sprintf(tmp, "Step: %05.2f", AnglePerMenuOpt[OptValue]); //Display Step value
@@ -901,7 +901,7 @@ void Oscillate()
       LargeEncoder.updateStatus();            //Clear Encoder Status
       LargeEncoder.readStatus();              //Clear Encoder Status
 
-      Serial.printf("Encoder Speed: %d\n", Speed);
+      //Serial.printf("Encoder Speed: %d\n", Speed);
 
       PanelDisplay.clearBuffer();
       sprintf(tmp, "Speed: %d", Speed); //Update display with Speed
@@ -1016,7 +1016,7 @@ void ParameterSetUp()
         break;
       }
       PanelDisplay.sendBuffer(); //Display buffer
-      Serial.printf("Menu Option Vinside paramsetup %d\n", MenuSelection);
+      //Serial.printf("Menu Option Vinside paramsetup %d\n", MenuSelection);
     }
 
     if (digitalRead(EncChangePin) == LOW)
